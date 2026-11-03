@@ -208,5 +208,58 @@ public class TaskModuleTest {
             System.out.println(
                     e.getMessage());
         }
+
+
+
+        try {
+
+    System.out.println(
+            "\n===== CIRCULAR DEPENDENCY TEST =====");
+
+    Workflow cyclicWorkflow =
+            new Workflow(
+                    "WF002",
+                    "Cycle Workflow",
+                    "DFS Test");
+
+    workflowService.createWorkFlow(
+            cyclicWorkflow);
+
+    Task taskA =
+            new Task(
+                    "A",
+                    "Task A",
+                    TaskPriority.HIGH,
+                    1000,
+                    List.of("C"));
+
+    Task taskB =
+            new Task(
+                    "B",
+                    "Task B",
+                    TaskPriority.MEDIUM,
+                    1000,
+                    List.of("A"));
+
+    Task taskC =
+            new Task(
+                    "C",
+                    "Task C",
+                    TaskPriority.LOW,
+                    1000,
+                    List.of("B"));
+
+    taskService.addTask("WF002", taskA);
+
+    taskService.addTask("WF002", taskB);
+
+    taskService.addTask("WF002", taskC);
+
+}
+catch (Exception e) {
+
+    System.out.println(
+            e.getMessage());
+}
     }
 }
