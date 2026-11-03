@@ -1,99 +1,66 @@
 package com.poc.workflow.servicesImpl;
-import com.poc.workflow.exception.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.poc.workflow.exception.DuplicateUserException;
+import com.poc.workflow.exception.InvalidCredentialsException;
+import com.poc.workflow.exception.UserAlreadyLoggedInException;
+import com.poc.workflow.exception.UserNotFoundException;
 import com.poc.workflow.model.AbstractUser;
 import com.poc.workflow.service.UserService;
 import com.poc.workflow.util.DataStore;
-import java.util.*;
 
+// Business rules for users. Throws exceptions only; never prints (the menu does that).
 public class UserServiceImpl implements UserService {
-
-    // implemet user register user
 
     @Override
     public void registerUser(AbstractUser user) throws DuplicateUserException {
-        // 1. check user exist
+        // username is the map key, so a key clash means a duplicate user
         if (DataStore.users.containsKey(user.getUsername())) {
-
-            throw new DuplicateUserException("This is a existing User");
-
+            throw new DuplicateUserException("Username already exists: " + user.getUsername());
         }
-
-        // if not exist take the user to register.put method is used.
         DataStore.users.put(user.getUsername(), user);
-        System.out.println(
-                "User registered successfully.");
-
     }
-
-    // login the user
 
     @Override
     public AbstractUser login(String username, String password)
             throws InvalidCredentialsException, UserAlreadyLoggedInException {
 
-        // check the user exist or not
+        AbstractUser user = DataStore.users.get(username);
 
-        // store the value in the user all the value like get call the object user now contains username , password, role , loggedIN.
+        // same message for "no such user" and "wrong password" so usernames are not revealed
+        if (user == null || !user.checkPassword(password)) {
+            throw new InvalidCredentialsException("Invalid username or password");
+        }
 
+        // spec rule: a logged-in user cannot log in again
+        if (user.isLoggedIn()) {
+            throw new UserAlreadyLoggedInException("User is already logged in: " + username);
+        }
+
+        user.setLoggedIn(true);
+        return user;
+    }
+
+    @Override
+    public void logout(String username) throws UserNotFoundException {
+        // getUserByUsername throws if the user does not exist, so no null check is needed here
+        getUserByUsername(username).setLoggedIn(false);
+    }
+
+    @Override
+    public AbstractUser getUserByUsername(String username) throws UserNotFoundException {
         AbstractUser user = DataStore.users.get(username);
         if (user == null) {
-            throw new InvalidCredentialsException("No User with this name");
+            throw new UserNotFoundException("No user found with username: " + username);
         }
-
-        if (!user.checkPassword(password)) {
-
-            //checkPassword ALREADY DEFINED IN THE MODEL.
-
-            throw new InvalidCredentialsException(
-                    "Invalid Password");
-        }
-
-         if (user.isLoggedIn()) {
-
-        throw new UserAlreadyLoggedInException(
-                "User already logged in");
-    }
-
-    // Login successful
-    user.setLoggedIn(true);
-
-    return user;
-
-    }
-
-
-// logout user.
-
-    @Override
-    public void logout (String username) throws UserNotFoundException {
-
-        AbstractUser user = DataStore.users.get(username);
-
-        user.setLoggedIn(false);
-
-    }
-
-
-    //AbstractUser getUserByUsername
-    public AbstractUser getUserByUsername (String username) throws UserNotFoundException{
-        AbstractUser user = DataStore.users.get(username);
-        if (user== null){
-            throw new UserNotFoundException("No user with tihs this name");
-        }
-
         return user;
-
     }
 
-
-    // 
-
-
     @Override
-public List<AbstractUser> getAllUsers() {
-
-    return new ArrayList<>(
-            DataStore.users.values());
-}
-
+    public List<AbstractUser> getAllUsers() {
+        // copy, so callers cannot modify the registry through the returned list
+        return new ArrayList<>(DataStore.users.values());
+    }
 }
