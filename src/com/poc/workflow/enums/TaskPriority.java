@@ -1,26 +1,23 @@
 package com.poc.workflow.enums;
 
+// Priority of a task. Each level adds a fixed delay (in ms) to its execution time:
+// estimated time = baseExecutionTimeMs + delayMs
 public enum TaskPriority {
 
-    HIGH(300), // number given so,  that it will be used for sorting the task
-    
-    // internally :public static final TaskPriority HIGH = new TaskPriority(300);
- 
-    MEDIUM(200),
-    LOW(100);
+    HIGH(0),      // most urgent, no extra delay
+    MEDIUM(50),
+    LOW(100);     // least urgent, longest delay
 
-    // encapsulated so that it can not be changed anythime 
-    private final int priorityFactor;
+    // final so the delay can never change after the constant is created
+    private final long delayMs;
 
-
-// constructor for initialisation 
-    TaskPriority(int priorityFactor) {
-        this.priorityFactor = priorityFactor;
+    // enum constructors are always private; each constant above calls this
+    TaskPriority(long delayMs) {
+        this.delayMs = delayMs;
     }
 
-
-// setting a getter method to access the priority factor
-    public int getPriorityFactor() {
-        return priorityFactor;
+    // getter used by Task.getEstimatedTimeMs() and the execution logic
+    public long getDelayMs() {
+        return delayMs;
     }
 }
