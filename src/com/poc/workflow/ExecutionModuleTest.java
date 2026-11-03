@@ -2,14 +2,12 @@ package com.poc.workflow;
 
 import com.poc.workflow.enums.TaskPriority;
 import com.poc.workflow.model.Task;
-import com.poc.workflow.model.Workflow;
 import com.poc.workflow.model.WorkflowRun;
 import com.poc.workflow.service.ExecutionService;
 import com.poc.workflow.service.TaskService;
-import com.poc.workflow.service.WorkflowService;
 import com.poc.workflow.servicesImpl.ExecutionServiceImpl;
 import com.poc.workflow.servicesImpl.TaskServiceImpl;
-import com.poc.workflow.servicesImpl.WorkFlowImpl;
+import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
 import java.util.List;
 
 public class ExecutionModuleTest {
@@ -18,8 +16,8 @@ public class ExecutionModuleTest {
 
         try {
 
-            WorkflowService workflowService =
-                    new WorkFlowImpl();
+            WorkflowServiceImpl workflowService =
+                    new WorkflowServiceImpl();
 
             TaskService taskService =
                     new TaskServiceImpl();
@@ -27,14 +25,9 @@ public class ExecutionModuleTest {
             ExecutionService executionService =
                     new ExecutionServiceImpl();
 
-            Workflow workflow =
-                    new Workflow(
-                            "WF100",
-                            "ETL Pipeline",
-                            "Execution Testing");
-
-            workflowService.createWorkFlow(
-                    workflow);
+            workflowService.createWorkflow(
+                    "WF100",
+                    "ETL Pipeline");
 
             taskService.addTask(
                     "WF100",
@@ -61,9 +54,6 @@ public class ExecutionModuleTest {
                             TaskPriority.LOW,
                             800,
                             List.of("T2")));
-
-            workflowService.activateWorkflow(
-                    "WF100");
 
             WorkflowRun run =
                     executionService.executeWorkflow(

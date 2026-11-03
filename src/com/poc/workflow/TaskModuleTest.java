@@ -6,7 +6,7 @@ import com.poc.workflow.model.Workflow;
 import com.poc.workflow.service.TaskService;
 import com.poc.workflow.service.WorkflowService;
 import com.poc.workflow.servicesImpl.TaskServiceImpl;
-import com.poc.workflow.servicesImpl.WorkFlowImpl;
+import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
 import java.util.List;
 
 public class TaskModuleTest {
@@ -14,7 +14,7 @@ public class TaskModuleTest {
     public static void main(String[] args) {
 
         WorkflowService workflowService =
-                new WorkFlowImpl();
+                new WorkflowServiceImpl();
 
         TaskService taskService =
                 new TaskServiceImpl();
@@ -30,7 +30,9 @@ public class TaskModuleTest {
                             "Daily Report",
                             "Report Generation Workflow");
 
-            workflowService.createWorkFlow(workflow);
+            workflowService.createWorkflow(
+                    workflow.getWorkflowId(),
+                    workflow.getName());
 
             System.out.println(
                     "Workflow Created Successfully");
@@ -222,8 +224,9 @@ public class TaskModuleTest {
                     "Cycle Workflow",
                     "DFS Test");
 
-    workflowService.createWorkFlow(
-            cyclicWorkflow);
+        workflowService.createWorkflow(
+                cyclicWorkflow.getWorkflowId(),
+                cyclicWorkflow.getName());
 
     Task taskA =
             new Task(
