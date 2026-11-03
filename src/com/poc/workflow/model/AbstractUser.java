@@ -1,4 +1,5 @@
 package com.poc.workflow.model;
+
 //It’s the shared parent for admins and operators and holds the login data. It depends only on Role.
 import com.poc.workflow.enums.Role;
 
@@ -23,10 +24,12 @@ public abstract class AbstractUser {
     public Role getRole() {
         return role;
     }
-
+//getter for logged in 
     public boolean isLoggedIn() {
         return loggedIn;
     }
+
+    // setter for logged in 
 
     public void setLoggedIn(boolean loggedIn) {
         this.loggedIn = loggedIn;
