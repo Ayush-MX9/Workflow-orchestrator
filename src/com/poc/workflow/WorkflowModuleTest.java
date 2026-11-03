@@ -1,169 +1,137 @@
 package com.poc.workflow;
 
+import java.util.List;
+
+import com.poc.workflow.enums.TaskPriority;
+import com.poc.workflow.exception.CircularDependencyException;
+import com.poc.workflow.exception.TaskAlreadyExistsException;
 import com.poc.workflow.exception.WorkflowAlreadyExistsException;
 import com.poc.workflow.exception.WorkflowNotFoundException;
+import com.poc.workflow.model.Task;
 import com.poc.workflow.model.Workflow;
 import com.poc.workflow.service.WorkflowService;
-import com.poc.workflow.servicesImpl.WorkFlowImpl;
+import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
 
+// Manual test runner for WorkflowService. Prints PASS/FAIL per case.
 public class WorkflowModuleTest {
 
-    public static void main(String[] args) {
+    private static int passed = 0;
+    private static int failed = 0;
 
-        WorkflowService workflowService =
-                new WorkFlowImpl();
+    public static void main(String[] args) throws Exception {
+        WorkflowService service = new WorkflowServiceImpl();
 
-        try {
-
-            System.out.println(
-                    "===== CREATE WORKFLOW TEST =====");
-
-            Workflow workflow1 =
-                    new Workflow(
-                            "WF001",
-                            "Daily Report",
-                            "Generates Daily Report");
-
-            workflowService.createWorkFlow(
-                    workflow1);
-
-            System.out.println(
-                    "Workflow Created Successfully");
-
-            System.out.println(
-                    workflow1);
-
-
-
-            System.out.println(
-                    "\n===== DUPLICATE NAME TEST =====");
-
-            Workflow workflow2 =
-                    new Workflow(
-                            "WF002",
-                            "Daily Report",
-                            "Another Workflow");
-
-            workflowService.createWorkFlow(
-                    workflow2);
-
-        }
-
-        catch (WorkflowAlreadyExistsException e) {
-
-            System.out.println(
-                    e.getMessage());
-        }
+        // ---- workflows ----
+        Workflow wf = service.createWorkflow("Payroll", "Monthly payroll");
+        String id = wf.getWorkflowId();
+        check("Create workflow returns generated id", id != null && id.startsWith("WF-"));
+        check("New workflow starts inactive", !wf.isActive());
 
         try {
-
-            System.out.println(
-                    "\n===== GET WORKFLOW TEST =====");
-
-            Workflow workflow =
-                    workflowService
-                            . getWorkFlowbyID(
-                                    "WF001");
-
-            System.out.println(
-                    workflow);
-
+            service.createWorkflow("payroll", "same name, different case");
+            check("Duplicate name rejected (case-insensitive)", false);
+        } catch (WorkflowAlreadyExistsException e) {
+            check("Duplicate name rejected (case-insensitive)", true);
         }
 
-        catch (WorkflowNotFoundException e) {
+        check("Get by id works", service.getWorkflowById(id) == wf);
+        check("Get by name works", service.getWorkflowByName("PAYROLL") == wf);
 
-            System.out.println(
-                    e.getMessage());
+        try {
+            service.getWorkflowById("WF-999");
+            check("Unknown id throws", false);
+        } catch (WorkflowNotFoundException e) {
+            check("Unknown id throws", true);
+        }
+
+        service.setWorkflowActive(id, true);
+        check("Activate works", wf.isActive());
+        check("Active list contains it", service.getActiveWorkflows().contains(wf));
+        service.setWorkflowActive(id, false);
+        check("Deactivate works", !wf.isActive());
+        check("Active list no longer contains it", !service.getActiveWorkflows().contains(wf));
+
+        service.updateWorkflow(id, "Payroll v2", null);
+        check("Update name works, blank description kept",
+                wf.getName().equals("Payroll v2") && wf.getDescription().equals("Monthly payroll"));
+
+        Workflow other = service.createWorkflow("Billing", "Invoices");
+        try {
+            service.updateWorkflow(other.getWorkflowId(), "payroll v2", null);
+            check("Rename to an existing name rejected", false);
+        } catch (WorkflowAlreadyExistsException e) {
+            check("Rename to an existing name rejected", true);
+        }
+        service.updateWorkflow(id, "PAYROLL V2", null);
+        check("Workflow may change case of its own name", wf.getName().equals("PAYROLL V2"));
+
+        // ---- tasks ----
+        service.addTask(id, new Task("T1", "Collect data", TaskPriority.HIGH, 100));
+        service.addTask(id, new Task("T2", "Calculate", TaskPriority.MEDIUM, 200, List.of("T1")));
+        check("Two tasks added in order", wf.getTasks().size() == 2);
+
+        try {
+            service.addTask(id, new Task("T1", "Duplicate", TaskPriority.LOW, 50));
+            check("Duplicate taskId rejected", false);
+        } catch (TaskAlreadyExistsException e) {
+            check("Duplicate taskId rejected", true);
         }
 
         try {
-
-            System.out.println(
-                    "\n===== DEACTIVATE TEST =====");
-
-            workflowService
-                    .deactivateWorkflow(
-                            "WF001");
-
-            Workflow workflow =
-                    workflowService
-                            . getWorkFlowbyID(
-                                    "WF001");
-
-            System.out.println(
-                    "Workflow Active Status : "
-                            + workflow.isActive());
-
+            service.addTask(id, new Task("T3", "Bad dep", TaskPriority.LOW, 50, List.of("X")));
+            check("Unknown dependency rejected", false);
+        } catch (IllegalArgumentException e) {
+            check("Unknown dependency rejected", true);
         }
+        check("Rejected tasks were not added", wf.getTasks().size() == 2);
 
-        catch (WorkflowNotFoundException e) {
+        // T2 already depends on T1, so making T1 depend on T2 forms T1 -> T2 -> T1
+        try {
+            service.updateTask(id, "T1", null, null, null, List.of("T2"));
+            check("Cycle T1 -> T2 -> T1 detected", false);
+        } catch (CircularDependencyException e) {
+            check("Cycle T1 -> T2 -> T1 detected", true);
+            System.out.println("      message: " + e.getMessage());
+        }
+        check("Failed update left T1 unchanged", wf.findTaskById("T1").getDependsOnTaskIds().isEmpty());
 
-            System.out.println(
-                    e.getMessage());
+        try {
+            service.updateTask(id, "T1", null, null, null, List.of("T1"));
+            check("Self-dependency detected", false);
+        } catch (CircularDependencyException e) {
+            check("Self-dependency detected", true);
         }
 
         try {
-
-            System.out.println(
-                    "\n===== ACTIVATE TEST =====");
-
-            workflowService
-                    .activateWorkflow(
-                            "WF001");
-
-            Workflow workflow =
-                    workflowService
-                            . getWorkFlowbyID(
-                                    "WF001");
-
-            System.out.println(
-                    "Workflow Active Status : "
-                            + workflow.isActive());
-
+            service.removeTask(id, "T1");
+            check("Cannot remove a task others depend on", false);
+        } catch (IllegalStateException e) {
+            check("Cannot remove a task others depend on", true);
         }
+        service.removeTask(id, "T2");
+        service.removeTask(id, "T1");
+        check("Tasks removable in reverse order", wf.getTasks().isEmpty());
 
-        catch (WorkflowNotFoundException e) {
-
-            System.out.println(
-                    e.getMessage());
-        }
-
+        // ---- delete ----
+        service.deleteWorkflow(id);
         try {
-
-            System.out.println(
-                    "\n===== DELETE TEST =====");
-
-            workflowService
-                    .deleteWorkFlow(
-                            "WF001");
-
-            System.out.println(
-                    "Workflow Deleted Successfully");
-
+            service.getWorkflowById(id);
+            check("Deleted workflow is gone", false);
+        } catch (WorkflowNotFoundException e) {
+            check("Deleted workflow is gone", true);
         }
 
-        catch (WorkflowNotFoundException e) {
+        System.out.println();
+        System.out.println("Passed: " + passed + "  Failed: " + failed);
+    }
 
-            System.out.println(
-                    e.getMessage());
+    private static void check(String name, boolean condition) {
+        if (condition) {
+            passed++;
+            System.out.println("PASS  " + name);
+        } else {
+            failed++;
+            System.out.println("FAIL  " + name);
         }
-
-        try {
-
-            System.out.println(
-                    "\n===== GET DELETED WORKFLOW TEST =====");
-
-            workflowService
-                    . getWorkFlowbyID(
-                            "WF001");
-
-        }
-
-        catch (WorkflowNotFoundException e) {
-
-            System.out.println(
-                    e.getMessage());
-        }
-
     }
 }
