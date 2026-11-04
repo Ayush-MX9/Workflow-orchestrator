@@ -27,6 +27,7 @@ import com.poc.workflow.servicesImpl.ReportServiceImpl;
 public class AdminMenu {
 
     private final AbstractUser currentUser;
+    private final UserService userService = new UserServiceImpl();
     private final WorkflowService workflowService = new WorkflowServiceImpl();
     private final UserService userService = new UserServiceImpl();
     private final ReportService reportService = new ReportServiceImpl();
@@ -61,23 +62,24 @@ public class AdminMenu {
                 case 4 -> toggleWorkflow();
                 case 5 -> new TaskMenu(workflowService).show();
                 case 6 -> viewAllWorkflows();
-                case 7 -> viewRuns();
-                case 8 -> viewAnalytics();
-                case 9 -> running = false;
+                case 7 -> viewWorkflowRuns(reportService.getAllRuns());
+                case 8 -> showAnalyticsMenu();
+                case 9 -> viewUsers();
+                case 10 -> running = false;
             }
         }
     }
 
     private void viewUsers() {
-    int[] widths = {16, 10, 10};
-    LogUtil.header("REGISTERED USERS");
-    System.out.println(LogUtil.row(widths, "Username", "Role", "Session"));
-    System.out.println(LogUtil.separator(widths));
-    for (AbstractUser u : userService.getAllUsers()) {
-        System.out.println(LogUtil.row(widths, u.getUsername(), u.getRole().name(),
-                u.isLoggedIn() ? "ACTIVE" : "-"));
+        int[] widths = {16, 10, 10};
+        LogUtil.header("REGISTERED USERS");
+        System.out.println(LogUtil.row(widths, "Username", "Role", "Session"));
+        System.out.println(LogUtil.separator(widths));
+        for (AbstractUser u : userService.getAllUsers()) {
+            System.out.println(LogUtil.row(widths, u.getUsername(), u.getRole().name(),
+                    u.isLoggedIn() ? "ACTIVE" : "-"));
+        }
     }
-}
     private void createWorkflow() {
         String name = InputUtil.readString("Workflow name: ");
         String description = InputUtil.readString("Description: ");
