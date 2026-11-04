@@ -11,7 +11,7 @@ import com.poc.workflow.enums.TaskStatus;
 public final class LogUtil {
 
     // Phase 2: set to true to add the thread name to every log line
-    private static final boolean SHOW_THREAD_NAME = false;
+    private static final boolean SHOW_THREAD_NAME = true;
 
     // DateTimeFormatter is immutable and thread-safe, so one shared instance is fine
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");

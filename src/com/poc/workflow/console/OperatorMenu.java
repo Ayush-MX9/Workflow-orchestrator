@@ -18,35 +18,46 @@ import java.util.List;
 
 public class OperatorMenu {
 
-    private final AbstractUser currentUser;
-    private final WorkflowService workflowService = new WorkflowServiceImpl();
-    private final ExecutionService executionService = new ExecutionServiceImpl();
-    private final ReportService reportService = new ReportServiceImpl();
+private final AbstractUser currentUser;
+private final WorkflowService workflowService = new WorkflowServiceImpl();
+private final ExecutionService executionService;
+private final ReportService reportService = new ReportServiceImpl();
 
-    public OperatorMenu(AbstractUser currentUser) {
-        this.currentUser = currentUser;
-    }
+// used by MainMenu: all menus share one executor, so a single shutdown() stops everything
+public OperatorMenu(AbstractUser currentUser, ExecutionService executionService) {
+    this.currentUser = currentUser;
+    this.executionService = executionService;
+}
 
-    public void show() {
-        boolean running = true;
-        while (running) {
-            System.out.println("\n========= OPERATOR MENU =========");
-            System.out.println("Logged in as: " + currentUser.getUsername());
-            System.out.println("1. View Active Workflows");
-            System.out.println("2. Execute Workflow");
-            System.out.println("3. View My Workflow Runs");
-            System.out.println("4. View My Run Details");
-            System.out.println("5. Logout");
-            int choice = InputUtil.readInt("Enter choice: ", 1, 5);
-            switch (choice) {
-                case 1 -> showActiveWorkflows();
-                case 2 -> executeWorkflow();
-                case 3 -> showMyRuns();
-                case 4 -> showRunDetails();
-                case 5 -> running = false;
-            }
+// kept so older code and tests still compile
+public OperatorMenu(AbstractUser currentUser) {
+    this(currentUser, new ExecutionServiceImpl());
+}
+
+public void show() {
+    boolean running = true;
+    while (running) {
+        System.out.println("\n========= OPERATOR MENU =========");
+        System.out.println("Logged in as: " + currentUser.getUsername());
+        System.out.println("1. View Active Workflows");
+        System.out.println("2. Execute Workflow");
+        System.out.println("3. View My Workflow Runs");
+        System.out.println("4. View My Run Details");
+        System.out.println("5. Run Workflow Multiple Times (parallel)");
+        System.out.println("6. View Live Progress");
+        System.out.println("7. Logout");
+        int choice = InputUtil.readInt("Enter choice: ", 1, 7);
+        switch (choice) {
+            case 1 -> showActiveWorkflows();
+            case 2 -> executeWorkflow();
+            case 3 -> showMyRuns();
+            case 4 -> showRunDetails();
+            case 5 -> RunActions.runMultiple(executionService, workflowService, currentUser.getUsername());
+            case 6 -> RunActions.showProgress();
+            case 7 -> running = false;
         }
     }
+}
 
     private void showActiveWorkflows() {
         List<Workflow> workflows = workflowService.getActiveWorkflows();
@@ -98,7 +109,7 @@ public class OperatorMenu {
             System.out.println("Run saved: " + run.getRunId() + " (" + run.getStatus() + ")");
         } catch (WorkflowNotFoundException | InactiveWorkflowExecutionException e) {
             System.out.println("Error: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             System.out.println("Cannot execute workflow: " + e.getMessage());
         }
     }
