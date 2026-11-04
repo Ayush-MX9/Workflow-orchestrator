@@ -5,11 +5,31 @@ import com.poc.workflow.exception.WorkflowNotFoundException;
 import com.poc.workflow.model.Task;
 import com.poc.workflow.model.Workflow;
 import com.poc.workflow.model.WorkflowRun;
+import com.poc.workflow.enums.TaskStatus;
 import com.poc.workflow.service.ExecutionService;
 import com.poc.workflow.util.DataStore;
+import com.poc.workflow.util.DependencyUtil;
+import com.poc.workflow.util.IdGenerator;
+import com.poc.workflow.util.LogUtil;
+import java.util.List;
 
 public class ExecutionServiceImpl
         implements ExecutionService {
+
+    private static final double FAILURE_PROBABILITY = 0.0;
+
+    private final double failureProbability;
+
+    public ExecutionServiceImpl() {
+        this(FAILURE_PROBABILITY);
+    }
+
+    public ExecutionServiceImpl(double failureProbability) {
+        if (failureProbability < 0.0 || failureProbability > 1.0) {
+            throw new IllegalArgumentException("Failure probability must be between 0 and 1");
+        }
+        this.failureProbability = failureProbability;
+    }
 
     @Override
     public WorkflowRun executeWorkflow(
@@ -35,51 +55,57 @@ public class ExecutionServiceImpl
                     "Workflow is inactive");
         }
 
+        if (workflow.getTasks().isEmpty()) {
+            throw new IllegalArgumentException("Cannot execute a workflow with no tasks");
+        }
+
+        // Validate and order tasks before creating a run, so invalid workflows are not recorded.
+        List<Task> executionOrder = DependencyUtil.sortByDependencies(workflow.getTasks());
+
         // Step 3: Create Run Object
         WorkflowRun run =
                 new WorkflowRun(
-                        "RUN-" +
-                        (DataStore.workflowRuns.size() + 1),
+                        IdGenerator.nextRunId(),
                         workflow,
                         triggeredBy);
 
-        System.out.println(
-                "\n===== EXECUTING WORKFLOW =====");
+        LogUtil.header("EXECUTING WORKFLOW");
 
         // Step 4: Execute Tasks One By One
-        for (Task task : workflow.getTasks()) {
+        for (Task task : executionOrder) {
+            boolean dependenciesCompleted = task.getDependsOnTaskIds().stream()
+                    .allMatch(dependencyId ->
+                            run.getTaskStatuses().get(dependencyId)
+                                    == TaskStatus.COMPLETED);
+            if (!dependenciesCompleted) {
+                run.markFailed(task.getTaskId(), 0);
+                LogUtil.taskFailed(task.getTaskId(), task.getTaskName());
+                continue;
+            }
 
-            System.out.println(
-                    "Starting Task : "
-                            + task.getTaskName());
-
+            LogUtil.taskStarting(task.getTaskId(), task.getTaskName());
             run.markRunning(
                     task.getTaskId());
 
-            // Simulate execution
             long executionTime =
                     task.getEstimatedTimeMs();
-
-            run.markCompleted(
-                    task.getTaskId(),
-                    executionTime);
-
-            System.out.println(
-                    "Completed Task : "
-                            + task.getTaskName()
-                            + " ("
-                            + executionTime
-                            + " ms)");
+            if (Math.random() < failureProbability) {
+                run.markFailed(task.getTaskId(), executionTime);
+                LogUtil.taskFailed(task.getTaskId(), task.getTaskName());
+            } else {
+                run.markCompleted(task.getTaskId(), executionTime);
+                LogUtil.taskCompleted(task.getTaskId(), task.getTaskName(), executionTime);
+            }
         }
 
         // Step 5: Finish Workflow Run
         run.finish();
+        LogUtil.printWorkflowRunSummary(run);
 
         // Step 6: Store Run History
         DataStore.workflowRuns.add(run);
 
-        System.out.println(
-                "\nWorkflow Execution Completed");
+        LogUtil.info("Workflow execution finished with status " + run.getStatus());
 
         return run;
     }

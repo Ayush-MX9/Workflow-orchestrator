@@ -8,6 +8,7 @@ import com.poc.workflow.service.TaskService;
 import com.poc.workflow.servicesImpl.ExecutionServiceImpl;
 import com.poc.workflow.servicesImpl.TaskServiceImpl;
 import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
+import com.poc.workflow.model.Workflow;
 import java.util.List;
 
 public class ExecutionModuleTest {
@@ -25,12 +26,14 @@ public class ExecutionModuleTest {
             ExecutionService executionService =
                     new ExecutionServiceImpl();
 
-            workflowService.createWorkflow(
-                    "WF100",
-                    "ETL Pipeline");
+            Workflow workflow = workflowService.createWorkflow(
+                    "ETL Pipeline",
+                    "Workflow used to validate execution");
+            String workflowId = workflow.getWorkflowId();
+            workflowService.setWorkflowActive(workflowId, true);
 
             taskService.addTask(
-                    "WF100",
+                    workflowId,
                     new Task(
                             "T1",
                             "Extract",
@@ -38,7 +41,7 @@ public class ExecutionModuleTest {
                             1000));
 
             taskService.addTask(
-                    "WF100",
+                    workflowId,
                     new Task(
                             "T2",
                             "Transform",
@@ -47,7 +50,7 @@ public class ExecutionModuleTest {
                             List.of("T1")));
 
             taskService.addTask(
-                    "WF100",
+                    workflowId,
                     new Task(
                             "T3",
                             "Load",
@@ -57,7 +60,7 @@ public class ExecutionModuleTest {
 
             WorkflowRun run =
                     executionService.executeWorkflow(
-                            "WF100",
+                            workflowId,
                             "admin");
 
             System.out.println(
@@ -76,6 +79,9 @@ public class ExecutionModuleTest {
             System.out.println(
                     "Total Time : "
                             + run.getTotalTimeMs());
+            if (run.getCompletedCount() != 3 || run.getFailedCount() != 0) {
+                throw new AssertionError("Expected all three tasks to complete successfully");
+            }
 
         } catch (Exception e) {
 
