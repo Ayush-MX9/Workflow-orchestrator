@@ -3,6 +3,7 @@ package com.poc.workflow.console;
 import com.poc.workflow.exception.InactiveWorkflowExecutionException;
 import com.poc.workflow.exception.WorkflowNotFoundException;
 import com.poc.workflow.model.AbstractUser;
+import com.poc.workflow.model.Task;
 import com.poc.workflow.model.Workflow;
 import com.poc.workflow.model.WorkflowRun;
 import com.poc.workflow.service.ExecutionService;
@@ -61,6 +62,27 @@ public class OperatorMenu {
             System.out.println(LogUtil.row(widths, workflow.getWorkflowId(), workflow.getName(),
                     String.valueOf(workflow.getTasks().size()),
                     LogUtil.formatDuration(workflow.getTotalEstimatedTimeMs())));
+            showWorkflowTasks(workflow);
+        }
+    }
+
+    private void showWorkflowTasks(Workflow workflow) {
+        if (workflow.getTasks().isEmpty()) {
+            System.out.println("  No tasks configured.");
+            return;
+        }
+
+        int[] widths = {10, 30, 10, 14, 20};
+        System.out.println("  Tasks in " + workflow.getName() + ":");
+        System.out.println("  " + LogUtil.row(widths, "Task ID", "Task Name", "Priority",
+                "Est. time", "Depends on"));
+        System.out.println("  " + LogUtil.separator(widths));
+        for (Task task : workflow.getTasks()) {
+            System.out.println("  " + LogUtil.row(widths, task.getTaskId(), task.getTaskName(),
+                    task.getPriority().name(), LogUtil.formatDuration(task.getEstimatedTimeMs()),
+                    task.getDependsOnTaskIds().isEmpty()
+                            ? "-"
+                            : String.join(", ", task.getDependsOnTaskIds())));
         }
     }
 
