@@ -29,7 +29,6 @@ public class AdminMenu {
     private final AbstractUser currentUser;
     private final UserService userService = new UserServiceImpl();
     private final WorkflowService workflowService = new WorkflowServiceImpl();
-    private final UserService userService = new UserServiceImpl();
     private final ReportService reportService = new ReportServiceImpl();
     
 
