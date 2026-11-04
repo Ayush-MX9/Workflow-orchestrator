@@ -24,7 +24,8 @@ public final class DataStore {
     public static final List<WorkflowRun> workflowRuns = new CopyOnWriteArrayList<>();
 
     // runs executing right now: runId -> context (added at start, removed on finish)
-    public static final Map<String, WorkflowRunContext> activeRuns = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<String, WorkflowRunContext> activeRuns =
+            new ConcurrentHashMap<>();
 
     static {
         users.put("admin", new AdminUser("admin", "admin123"));

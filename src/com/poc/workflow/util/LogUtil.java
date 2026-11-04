@@ -3,6 +3,7 @@ package com.poc.workflow.util;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 import com.poc.workflow.model.WorkflowRun;
 import com.poc.workflow.enums.TaskStatus;
@@ -26,12 +27,54 @@ public final class LogUtil {
         info("Starting Task " + taskId + " (" + taskName + ")");
     }
 
+    public static void taskStarting(WorkflowRun run, String taskId) {
+        executionInfo(run, "Starting Task " + taskId);
+    }
+
     public static void taskCompleted(String taskId, String taskName, long timeMs) {
         info("Completed Task " + taskId + " (" + taskName + ") in " + timeMs + " ms");
     }
 
+    public static void taskCompleted(WorkflowRun run, String taskId, long timeMs) {
+        executionInfo(run, "Completed Task " + taskId + " in " + timeMs + " ms");
+    }
+
     public static void taskFailed(String taskId, String taskName) {
         info("Task " + taskId + " (" + taskName + ") failed");
+    }
+
+    public static void taskFailed(WorkflowRun run, String taskId) {
+        executionInfo(run, "Task " + taskId + " FAILED");
+    }
+
+    public static void taskFailedAfterRetries(WorkflowRun run, String taskId) {
+        executionInfo(run, "Task " + taskId + " FAILED after max retries");
+    }
+
+    public static void taskWaitingForDependency(WorkflowRun run, String taskId, String dependencyId) {
+        executionInfo(run, "Task " + taskId + " waiting for dependency " + dependencyId);
+    }
+
+    public static void dependenciesSatisfied(WorkflowRun run, String taskId) {
+        executionInfo(run, "Dependencies satisfied for Task " + taskId);
+    }
+
+    public static void retryScheduled(WorkflowRun run, int retry, int maxRetries) {
+        executionInfo(run, "Retry " + retry + "/" + maxRetries);
+    }
+
+    public static void workflowFailed(WorkflowRun run) {
+        executionInfo(run, "Workflow marked FAILED");
+    }
+
+    private static void executionInfo(WorkflowRun run, String message) {
+        StringBuilder line = new StringBuilder();
+        line.append('[').append(LocalTime.now().format(TIME_FORMAT)).append("] ");
+        line.append('[').append(Thread.currentThread().getName()).append("][")
+                .append(run.getRunId()).append("][")
+                .append(run.getWorkflowId()).append("] ");
+        line.append(message);
+        System.out.println(line);
     }
 
     // General log line: [14:32:05.123] message   (Phase 2: [14:32:05.123] [pool-1-thread-2] message)
@@ -59,15 +102,27 @@ public final class LogUtil {
     }
 
     public static void printWorkflowRunSummary(WorkflowRun run) {
-        header("WORKFLOW RUN SUMMARY: " + run.getRunId());
-        int[] widths = {12, 24, 16, 16};
-        System.out.println(row(widths, "Task ID", "Task Name", "Status", "Time (ms)"));
-        System.out.println(separator(widths));
-        run.getTaskStatuses().forEach((taskId, status) ->
-                System.out.println(row(widths, taskId, run.getTaskNames().get(taskId),
-                        status.name(), String.valueOf(run.getTaskTimesMs().get(taskId)))));
-        System.out.println("Run status: " + run.getStatus());
-        System.out.println("Total simulated time: " + formatDuration(run.getTotalTimeMs()));
+        synchronized (System.out) {
+            header("WORKFLOW RUN SUMMARY");
+            System.out.println("Run ID: " + run.getRunId());
+            System.out.println("Workflow: " + run.getWorkflowId());
+            System.out.println();
+            System.out.println("Task thread usage:");
+            Map<String, String> workerThreads = run.getTaskWorkerThreads();
+            run.getTaskStatuses().keySet().forEach(taskId ->
+                    System.out.println(taskId + " -> "
+                            + workerThreads.getOrDefault(taskId, "not executed")));
+            System.out.println();
+            int[] widths = {12, 24, 16, 16};
+            System.out.println(row(widths, "Task ID", "Task Name", "Status", "Time (ms)"));
+            System.out.println(separator(widths));
+            run.getTaskStatuses().forEach((taskId, status) ->
+                    System.out.println(row(widths, taskId, run.getTaskNames().get(taskId),
+                            status.name(), String.valueOf(run.getTaskTimesMs().get(taskId)))));
+            System.out.println("Run status: " + run.getStatus());
+            System.out.println("Status: " + run.getStatus());
+            System.out.println("Total simulated time: " + formatDuration(run.getTotalTimeMs()));
+        }
     }
 
     // ---------- console tables ----------

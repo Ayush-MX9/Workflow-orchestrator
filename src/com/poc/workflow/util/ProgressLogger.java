@@ -1,8 +1,5 @@
 package com.poc.workflow.util;
 
-import java.util.Map;
-
-import com.poc.workflow.enums.TaskStatus;
 import com.poc.workflow.model.WorkflowRun;
 import com.poc.workflow.model.WorkflowRunContext;   // match Pratik's package
 
@@ -59,26 +56,15 @@ public class ProgressLogger implements Runnable {
             System.out.println("No workflow runs are executing right now.");
             return;
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append("PROGRESS: ").append(DataStore.activeRuns.size()).append(" active run(s)");
-        for (WorkflowRunContext context : DataStore.activeRuns.values()) {
-            sb.append("\n   ").append(describe(context.getRun()));
-        }
-        LogUtil.info(sb.toString());   // one println, so the block is never interleaved
-    }
-
-    private static String describe(WorkflowRun run) {
-        Map<String, TaskStatus> statuses = run.getTaskStatuses();   // snapshot copy
-        int done = 0, active = 0, failed = 0;
-        for (TaskStatus status : statuses.values()) {
-            switch (status) {
-                case COMPLETED -> done++;
-                case RUNNING -> active++;
-                case FAILED -> failed++;
-                default -> { }
+        synchronized (System.out) {
+            System.out.println("========== LIVE WORKFLOW DASHBOARD ==========");
+            for (WorkflowRunContext context : DataStore.activeRuns.values()) {
+                WorkflowRun run = context.getRun();
+                System.out.println();
+                System.out.println(run.getRunId() + " | " + run.getWorkflowId() + " | RUNNING");
+                System.out.println("Completed Tasks: " + run.getCompletedCount() + "/"
+                        + run.getTaskStatuses().size());
             }
         }
-        return run.getRunId() + " | " + run.getWorkflowName() + " | "
-                + done + "/" + statuses.size() + " done, " + active + " running, " + failed + " failed";
     }
 }

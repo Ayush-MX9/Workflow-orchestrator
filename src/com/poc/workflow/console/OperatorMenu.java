@@ -45,8 +45,9 @@ public void show() {
         System.out.println("4. View My Run Details");
         System.out.println("5. Run Workflow Multiple Times (parallel)");
         System.out.println("6. View Live Progress");
-        System.out.println("7. Logout");
-        int choice = InputUtil.readInt("Enter choice: ", 1, 7);
+        System.out.println("7. Execute Multiple Active Workflows Concurrently");
+        System.out.println("8. Logout");
+        int choice = InputUtil.readInt("Enter choice: ", 1, 8);
         switch (choice) {
             case 1 -> showActiveWorkflows();
             case 2 -> executeWorkflow();
@@ -54,7 +55,9 @@ public void show() {
             case 4 -> showRunDetails();
             case 5 -> RunActions.runMultiple(executionService, workflowService, currentUser.getUsername());
             case 6 -> RunActions.showProgress();
-            case 7 -> running = false;
+            case 7 -> RunActions.executeAllActiveWorkflowsConcurrently(
+                    executionService, workflowService, currentUser.getUsername());
+            case 8 -> running = false;
         }
     }
 }

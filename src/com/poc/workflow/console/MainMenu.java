@@ -20,7 +20,7 @@ import com.poc.workflow.util.ProgressLogger;
 public class MainMenu {
 
     private final UserService userService = new UserServiceImpl();
-    private final ExecutionService executionService = new ExecutionServiceImpl();
+    private final ExecutionService executionService = new ExecutionServiceImpl(0.1);
     private final ProgressLogger progressLogger = new ProgressLogger();
 
     public void show() {

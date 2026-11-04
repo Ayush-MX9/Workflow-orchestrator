@@ -57,9 +57,10 @@ public class AdminMenu {
             System.out.println("9. View Registered Users");
             System.out.println("10. Run Workflow Multiple Times (parallel)");
             System.out.println("11. View Live Progress");
-            System.out.println("12. Logout");
+            System.out.println("12. Execute Multiple Active Workflows Concurrently");
+            System.out.println("13. Logout");
 
-            int choice = InputUtil.readInt("Enter choice: ", 1, 12);
+            int choice = InputUtil.readInt("Enter choice: ", 1, 13);
 
             switch (choice) {
                 case 1 -> createWorkflow();
@@ -73,7 +74,9 @@ public class AdminMenu {
                 case 9 -> viewUsers();
                 case 10 -> RunActions.runMultiple(executionService, workflowService, currentUser.getUsername());
                 case 11 -> RunActions.showProgress();
-                case 12 -> running = false;
+                case 12 -> RunActions.executeAllActiveWorkflowsConcurrently(
+                        executionService, workflowService, currentUser.getUsername());
+                case 13 -> running = false;
             }
         }
     }

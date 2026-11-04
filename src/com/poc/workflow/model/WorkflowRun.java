@@ -29,6 +29,7 @@ public class WorkflowRun {
     private final Map<String, Long> taskTimesMs = new LinkedHashMap<>();
     private final Map<String, String> taskNames = new LinkedHashMap<>();
     private final Map<String, Integer> retryCounts = new LinkedHashMap<>();
+    private final Map<String, String> taskWorkerThreads = new LinkedHashMap<>();
 
     public WorkflowRun(String runId, Workflow workflow, String triggeredBy) {
         this.runId = runId;
@@ -78,6 +79,15 @@ public class WorkflowRun {
         try {
             taskStatuses.put(taskId, TaskStatus.COMPLETED);
             taskTimesMs.put(taskId, timeTakenMs);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void recordTaskWorker(String taskId, String workerThread) {
+        lock.lock();
+        try {
+            taskWorkerThreads.put(taskId, workerThread);
         } finally {
             lock.unlock();
         }
@@ -157,6 +167,15 @@ public class WorkflowRun {
     public Map<String, String> getTaskNames() {
         // written only in the constructor and never changed, so no lock is needed
         return Collections.unmodifiableMap(taskNames);
+    }
+
+    public Map<String, String> getTaskWorkerThreads() {
+        lock.lock();
+        try {
+            return Collections.unmodifiableMap(new LinkedHashMap<>(taskWorkerThreads));
+        } finally {
+            lock.unlock();
+        }
     }
 
     public int getRetryCount(String taskId) {

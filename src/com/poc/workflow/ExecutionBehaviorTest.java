@@ -40,6 +40,8 @@ public class ExecutionBehaviorTest {
                         && failedRun.getTaskStatuses().get("T3") == TaskStatus.FAILED
                         && failedRun.getTaskTimesMs().get("T3") == 0);
         check("Failed dependency chain produces FAILED run", failedRun.getStatus() == RunStatus.FAILED);
+        check("Failed tasks are retried up to the configured limit",
+                failedRun.getRetryCount("T1") == 2);
 
         Workflow emptyWorkflow = new Workflow("WF-EMPTY", "Empty", "No tasks");
         emptyWorkflow.setActive(true);

@@ -67,7 +67,8 @@ public class TaskMenu {
         String taskId = InputUtil.readString("Task id (e.g. T1): ");
         String taskName = InputUtil.readString("Task name: ");
         TaskPriority priority = readPriority();
-        long baseTimeMs = InputUtil.readPositiveLong("Base execution time (ms): ");
+        long baseTimeMs = InputUtil.readPositiveLong(
+                "Base execution time (ms; use 3000-10000 ms for the concurrency demo): ");
         List<String> dependsOn = readDependencies("Depends on task ids (comma separated, Enter for none): ");
 
         try {
