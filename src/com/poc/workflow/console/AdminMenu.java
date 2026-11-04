@@ -15,13 +15,22 @@ import com.poc.workflow.servicesImpl.ReportServiceImpl;
 import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
 import com.poc.workflow.util.InputUtil;
 import com.poc.workflow.util.LogUtil;
+import com.poc.workflow.service.UserService;
+import com.poc.workflow.servicesImpl.UserServiceImpl;
+import java.util.Map;
+import com.poc.workflow.enums.RunStatus;
+import com.poc.workflow.model.WorkflowRun;
+import com.poc.workflow.service.ReportService;
+import com.poc.workflow.servicesImpl.ReportServiceImpl;
 
 // Admin menu. Reads input, calls WorkflowService, shows results or error messages.
 public class AdminMenu {
 
     private final AbstractUser currentUser;
     private final WorkflowService workflowService = new WorkflowServiceImpl();
+    private final UserService userService = new UserServiceImpl();
     private final ReportService reportService = new ReportServiceImpl();
+    
 
     public AdminMenu(AbstractUser currentUser) {
         this.currentUser = currentUser;
@@ -52,8 +61,8 @@ public class AdminMenu {
                 case 4 -> toggleWorkflow();
                 case 5 -> new TaskMenu(workflowService).show();
                 case 6 -> viewAllWorkflows();
-                case 7 -> viewWorkflowRuns(reportService.getAllRuns());
-                case 8 -> showAnalyticsMenu();
+                case 7 -> viewRuns();
+                case 8 -> viewAnalytics();
                 case 9 -> running = false;
             }
         }
@@ -128,6 +137,95 @@ public class AdminMenu {
             System.out.println("Error: " + e.getMessage());
         }
     }
+
+    // Option 7: all runs, optional status filter, optional run details
+private void viewRuns() {
+    System.out.println("1. All runs  2. SUCCESS  3. PARTIAL_SUCCESS  4. FAILED");
+    int choice = InputUtil.readInt("Filter: ", 1, 4);
+
+    List<WorkflowRun> runs = switch (choice) {
+        case 2 -> reportService.getRunsByStatus(RunStatus.SUCCESS);
+        case 3 -> reportService.getRunsByStatus(RunStatus.PARTIAL_SUCCESS);
+        case 4 -> reportService.getRunsByStatus(RunStatus.FAILED);
+        default -> reportService.getAllRuns();
+    };
+    if (runs.isEmpty()) {
+        System.out.println("No runs found.");
+        return;
+    }
+
+    int[] widths = {10, 22, 12, 16, 20, 10};
+    LogUtil.header("WORKFLOW RUNS");
+    System.out.println(LogUtil.row(widths, "Run ID", "Workflow", "By", "Status", "Started", "Time"));
+    System.out.println(LogUtil.separator(widths));
+    for (WorkflowRun run : runs) {
+        System.out.println(LogUtil.row(widths, run.getRunId(), run.getWorkflowName(),
+                run.getTriggeredBy(), String.valueOf(run.getStatus()),
+                LogUtil.formatDateTime(run.getStartTime()),
+                LogUtil.formatDuration(run.getTotalTimeMs())));
+    }
+
+    // Enter skips; otherwise show the task-wise summary of that run
+    String runId = InputUtil.readOptionalString("Run id for details (Enter to skip): ");
+    if (runId.isEmpty()) {
+        return;
+    }
+    for (WorkflowRun run : runs) {
+        if (run.getRunId().equalsIgnoreCase(runId)) {
+            LogUtil.printWorkflowRunSummary(run);
+            return;
+        }
+    }
+    System.out.println("No run with id " + runId + " in this list.");
+}
+
+// Option 8: analytics sub-menu
+private void viewAnalytics() {
+    System.out.println("1. Top 3 workflows by runs");
+    System.out.println("2. Tasks with highest failure count");
+    System.out.println("3. Task average execution time (one workflow)");
+    int choice = InputUtil.readInt("Select: ", 1, 3);
+
+    switch (choice) {
+        case 1 -> {
+            Map<String, Long> top = reportService.getTopWorkflowsByRunCount();
+            if (top.isEmpty()) {
+                System.out.println("No runs yet.");
+                return;
+            }
+            LogUtil.header("TOP 3 WORKFLOWS BY RUNS");
+            top.forEach((workflow, count) -> System.out.println(workflow + "  ->  " + count + " run(s)"));
+        }
+        case 2 -> {
+            Map<String, Long> failures = reportService.getTaskFailureCounts();
+            if (failures.isEmpty()) {
+                System.out.println("No task failures recorded.");
+                return;
+            }
+            LogUtil.header("TASK FAILURE COUNTS (highest first)");
+            failures.forEach((task, count) -> System.out.println(task + "  ->  " + count));
+        }
+        case 3 -> {
+            if (!showWorkflows()) {
+                return;
+            }
+            String id = InputUtil.readString("Workflow id: ");
+            try {
+                workflowService.getWorkflowById(id);   // validates the id
+            } catch (WorkflowNotFoundException e) {
+                System.out.println("Error: " + e.getMessage());
+                return;
+            }
+            Map<String, Double> averages = reportService.getAverageTaskTimes(id);
+            if (averages.isEmpty()) {
+                System.out.println("No executed tasks for this workflow yet.");
+                return;
+            }
+            LogUtil.header("AVERAGE TASK TIME (slowest first)");
+            averages.forEach((task, avg) -> System.out.printf("%-8s %.1f ms%n", task, avg));
+        }
+    }
+}
 
     private void viewAllWorkflows() {
         showWorkflows();
