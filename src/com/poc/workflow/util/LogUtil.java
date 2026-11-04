@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+import com.poc.workflow.model.WorkflowRun;
+import com.poc.workflow.enums.TaskStatus;
+
 // Central place for log lines and table formatting.
 public final class LogUtil {
 
@@ -53,6 +56,18 @@ public final class LogUtil {
     // 1500 -> "1500 ms"
     public static String formatDuration(long ms) {
         return ms + " ms";
+    }
+
+    public static void printWorkflowRunSummary(WorkflowRun run) {
+        header("WORKFLOW RUN SUMMARY: " + run.getRunId());
+        int[] widths = {12, 24, 16, 16};
+        System.out.println(row(widths, "Task ID", "Task Name", "Status", "Time (ms)"));
+        System.out.println(separator(widths));
+        run.getTaskStatuses().forEach((taskId, status) ->
+                System.out.println(row(widths, taskId, run.getTaskNames().get(taskId),
+                        status.name(), String.valueOf(run.getTaskTimesMs().get(taskId)))));
+        System.out.println("Run status: " + run.getStatus());
+        System.out.println("Total simulated time: " + formatDuration(run.getTotalTimeMs()));
     }
 
     // ---------- console tables ----------

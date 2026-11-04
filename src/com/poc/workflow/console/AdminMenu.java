@@ -7,7 +7,11 @@ import com.poc.workflow.exception.WorkflowAlreadyExistsException;
 import com.poc.workflow.exception.WorkflowNotFoundException;
 import com.poc.workflow.model.AbstractUser;
 import com.poc.workflow.model.Workflow;
+import com.poc.workflow.model.WorkflowRun;
+import com.poc.workflow.enums.RunStatus;
+import com.poc.workflow.service.ReportService;
 import com.poc.workflow.service.WorkflowService;
+import com.poc.workflow.servicesImpl.ReportServiceImpl;
 import com.poc.workflow.servicesImpl.WorkflowServiceImpl;
 import com.poc.workflow.util.InputUtil;
 import com.poc.workflow.util.LogUtil;
@@ -17,7 +21,7 @@ public class AdminMenu {
 
     private final AbstractUser currentUser;
     private final WorkflowService workflowService = new WorkflowServiceImpl();
-    private final UserService userService = new UserServiceImpl();
+    private final ReportService reportService = new ReportServiceImpl();
 
     public AdminMenu(AbstractUser currentUser) {
         this.currentUser = currentUser;
@@ -48,9 +52,9 @@ public class AdminMenu {
                 case 4 -> toggleWorkflow();
                 case 5 -> new TaskMenu(workflowService).show();
                 case 6 -> viewAllWorkflows();
-                case 7, 8 -> System.out.println("Coming soon (needs ReportService).");
-                case 9 -> viewUsers();
-                case 10 -> running = false;
+                case 7 -> viewWorkflowRuns(reportService.getAllRuns());
+                case 8 -> showAnalyticsMenu();
+                case 9 -> running = false;
             }
         }
     }
@@ -127,6 +131,94 @@ public class AdminMenu {
 
     private void viewAllWorkflows() {
         showWorkflows();
+    }
+
+    private void viewWorkflowRuns(List<WorkflowRun> runs) {
+        if (runs.isEmpty()) {
+            System.out.println("No workflow runs found.");
+            return;
+        }
+        int[] widths = {12, 24, 16, 16, 22};
+        LogUtil.header("WORKFLOW RUNS");
+        System.out.println(LogUtil.row(widths, "Run ID", "Workflow", "Status",
+                "Simulated time", "Triggered by"));
+        System.out.println(LogUtil.separator(widths));
+        for (WorkflowRun run : runs) {
+            System.out.println(LogUtil.row(widths, run.getRunId(), run.getWorkflowName(),
+                    run.getStatus() == null ? "RUNNING" : run.getStatus().name(),
+                    LogUtil.formatDuration(run.getTotalTimeMs()), run.getTriggeredBy()));
+        }
+    }
+
+    private void showAnalyticsMenu() {
+        boolean showing = true;
+        while (showing) {
+            System.out.println("\n========== WORKFLOW REPORTS ==========");
+            System.out.println("1. Filter runs by status");
+            System.out.println("2. Top 3 workflows by run count");
+            System.out.println("3. Average task time in a workflow");
+            System.out.println("4. Task failure counts");
+            System.out.println("5. Back");
+            int choice = InputUtil.readInt("Enter choice: ", 1, 5);
+            switch (choice) {
+                case 1 -> filterRunsByStatus();
+                case 2 -> showTopWorkflows();
+                case 3 -> showAverageTaskTimes();
+                case 4 -> showTaskFailureCounts();
+                case 5 -> showing = false;
+            }
+        }
+    }
+
+    private void filterRunsByStatus() {
+        System.out.println("1. SUCCESS  2. PARTIAL_SUCCESS  3. FAILED");
+        int choice = InputUtil.readInt("Select status: ", 1, 3);
+        RunStatus status = switch (choice) {
+            case 1 -> RunStatus.SUCCESS;
+            case 2 -> RunStatus.PARTIAL_SUCCESS;
+            default -> RunStatus.FAILED;
+        };
+        viewWorkflowRuns(reportService.getRunsByStatus(status));
+    }
+
+    private void showTopWorkflows() {
+        var workflows = reportService.getTopWorkflowsByRunCount();
+        if (workflows.isEmpty()) {
+            System.out.println("No workflow runs found.");
+            return;
+        }
+        LogUtil.header("TOP WORKFLOWS BY RUN COUNT");
+        workflows.forEach((name, count) -> System.out.println(name + " | " + count + " run(s)"));
+    }
+
+    private void showAverageTaskTimes() {
+        if (!showWorkflows()) {
+            return;
+        }
+        String workflowId = InputUtil.readString("Workflow id: ");
+        try {
+            Workflow workflow = workflowService.getWorkflowById(workflowId);
+            var averages = reportService.getAverageTaskTimes(workflowId);
+            if (averages.isEmpty()) {
+                System.out.println("No completed task timings for this workflow.");
+                return;
+            }
+            LogUtil.header("AVERAGE TASK TIMES: " + workflow.getName());
+            averages.forEach((taskId, average) ->
+                    System.out.println(taskId + " | " + average + " ms"));
+        } catch (WorkflowNotFoundException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void showTaskFailureCounts() {
+        var failures = reportService.getTaskFailureCounts();
+        if (failures.isEmpty()) {
+            System.out.println("No failed tasks recorded.");
+            return;
+        }
+        LogUtil.header("TASK FAILURE COUNTS");
+        failures.forEach((task, count) -> System.out.println(task + " | " + count + " failure(s)"));
     }
 
     // prints all workflows as a table; returns false if there are none
